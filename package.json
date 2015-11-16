@@ -1,0 +1,38 @@
+{
+  "name": "hubot-reminder-bot",
+  "description": "A hubot script to setup reminders using cron time",
+  "version": "1.0.0",
+  "authors": [
+    "Nino D'Aversa <nino@ndaversa.com>"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "hubot",
+    "hubot-scripts",
+    "reminders",
+    "cron"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:ndaversa/hubot-reminder-bot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ndaversa/hubot-reminder-bot/issues"
+  },
+  "dependencies": {
+    "coffee-script": "^1.10.0",
+    "cron": "^1.0.9",
+    "moment": "^2.10.6",
+    "underscore": "^1.8.3"
+  },
+  "main": "index.coffee",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "homepage": "https://github.com/ndaversa/hubot-reminder-bot",
+  "devDependencies": {},
+  "author": "Nino D'Aversa <nino@ndaversa.com> (http://ndaversa.com)"
+}
