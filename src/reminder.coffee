@@ -1,9 +1,9 @@
 # Description:
-# A hubot script to setup reminders using cron time
+# A hubot script to setup reminders using a natural language parser
 #
 # Dependencies:
 # - coffee-script
-# - cron
+# - later
 # - underscore
 # - moment
 #
@@ -11,7 +11,7 @@
 # None
 #
 # Commands:
-#   hubot remind [me] to <reminder> at <crontime> - Setup <reminder> to occur at <crontime> interval
+#   hubot remind [me|us] to `<reminder>` <interval> - Setup <reminder> to occur at <interlval>
 #   hubot reminder list - List all the pending reminders
 #   hubot reminder remove job <number> - Removes the given reminder job
 #
@@ -20,13 +20,16 @@
 
 _ = require 'underscore'
 moment = require 'moment'
-cronJob = require("cron").CronJob
-crons = []
+later = require 'later'
+
+later.date.localTime()
+scheduled = []
 
 module.exports = (robot) ->
 
-  createCron = (job) ->
-    new cronJob(job.time, (-> run job ), null, true)
+  create = (job) ->
+    sched = later.parse.text job.time
+    later.setInterval (-> run job ), sched
 
   run = (job) ->
     robot.adapter.customMessage
@@ -46,19 +49,24 @@ module.exports = (robot) ->
       text: text
       room: room
       time: cronTime
-    crons[job.id] = createCron job
+    scheduled[job.id] = create job
     jobs.push job
     saveJobs jobs
     return job
+
+  validSchedule = (text) ->
+    sched = later.parse.text text
+    return sched.error is -1
 
   removeJob = (number) ->
     jobs = getJobs()
     job = jobs[number]
 
     if job
-      crons[job.id].stop()
-      delete crons[job.id]
-      crons = _(crons).compact()
+      if scheduled[job.id]
+        scheduled[job.id].clear()
+        delete scheduled[job.id]
+      scheduled = _(scheduled).compact()
 
       delete jobs[number]
       jobs = _(jobs).compact()
@@ -71,7 +79,10 @@ module.exports = (robot) ->
   listJobs = (room) ->
     message = ""
     for job, index in getJobs()
-      message += "#{index}) Reminder to `#{job.text}` with a cron interval of `#{job.time}` will next run in `#{moment(crons[job.id].nextDate()).fromNow()}`\n"
+      sched = later.parse.text job.time
+      next = moment(later.schedule(sched).next(1, Date.now()))
+      message += "#{index}) Reminder to `#{job.text}` has been scheduled to run in ##{room} #{job.time} and will next run #{next.fromNow()}\n"
+
     message = "No reminders have been scheduled" if not message
     robot.messageRoom room, message
 
@@ -79,20 +90,25 @@ module.exports = (robot) ->
     listJobs msg.message.room
     msg.finish()
 
-  robot.respond /(?:reminder|reminder|reminders) remove(?: job)? (\d)/, (msg) ->
+  robot.respond /(?:reminder|reminder|reminders) (?:remove|delete|cancel)(?: job)? (\d)/, (msg) ->
     [ __, id ] = msg.match
     if removeJob id
-      msg.reply "Job ##{id} successfully removed"
+      msg.reply "Reminder ##{id} successfully removed"
     else
       msg.reply "Unable to remove Job ##{id}"
     msg.finish()
 
-  regex = /(?:remind|reminder|reminders)(?: me| us)? to ([^]+)(?: (?:at|on) ([^]+))/
+  regex = /(?:remind|reminder|reminders)(?: me| us)? to\s*`([^]+)`\s*([^]+)/
   robot.respond regex, (msg) ->
-    [ __, text, cron ] = msg.message.rawText.match regex
-    job = setupJob text, msg.message.room, cron
-    msg.reply "Reminder ##{getJobs().length - 1} has been scheduled with a cron interval of `#{job.time}` and the next run will be in `#{moment(crons[job.id].nextDate()).fromNow()}`"
+    [ __, text, time ] = msg.message.rawText.match regex
+    if validSchedule time
+      job = setupJob text, msg.message.room, time
+      sched = later.parse.text time
+      next = moment(later.schedule(sched).next(1, Date.now()))
+      msg.reply "Reminder ##{getJobs().length - 1} has been scheduled to run in ##{msg.message.room} #{time} and will next run #{next.fromNow()}"
+    else
+      msg.reply "Sorry, I was unable to parse your time interval"
     msg.finish()
 
   robot.brain.once 'loaded', ->
-    crons[job.id] = createCron job for job in getJobs()
+    scheduled[job.id] = create job for job in getJobs()

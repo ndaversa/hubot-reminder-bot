@@ -1,6 +1,6 @@
 {
   "name": "hubot-reminder-bot",
-  "description": "A hubot script to setup reminders using cron time",
+  "description": "A hubot script to setup reminders using a natural language parser",
   "version": "1.0.0",
   "authors": [
     "Nino D'Aversa <nino@ndaversa.com>"
@@ -10,7 +10,7 @@
     "hubot",
     "hubot-scripts",
     "reminders",
-    "cron"
+    "later"
   ],
   "repository": {
     "type": "git",
@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "coffee-script": "^1.10.0",
-    "cron": "^1.0.9",
+    "later": "^1.2.0",
     "moment": "^2.10.6",
     "underscore": "^1.8.3"
   },
