@@ -29,9 +29,9 @@ module.exports = (robot) ->
     new cronJob(job.time, (-> run job ), null, true)
 
   run = (job) ->
-    func = eval job.func
-    args = JSON.parse job.args
-    func.apply @, args
+    robot.adapter.customMessage
+      channel: job.room
+      text: job.text
 
   getJobs = ->
     robot.brain.get('reminder-jobs') or []
@@ -39,27 +39,31 @@ module.exports = (robot) ->
   saveJobs = (jobs) ->
     robot.brain.set 'reminder-jobs', jobs
 
-  setupJob = (text, room, cron) ->
+  setupJob = (text, room, cronTime) ->
     jobs = getJobs()
     job =
+      id: Date.now()
       text: text
       room: room
-      time: cron
+      time: cronTime
+    crons[job.id] = createCron job
     jobs.push job
     saveJobs jobs
-    crons.push createCron job
     return job
 
   removeJob = (number) ->
     jobs = getJobs()
-    if jobs[number]
+    job = jobs[number]
+
+    if job
+      crons[job.id].stop()
+      delete crons[job.id]
+      crons = _(crons).compact()
+
       delete jobs[number]
       jobs = _(jobs).compact()
       saveJobs jobs
 
-      crons[number].stop()
-      delete crons[number]
-      crons = _(crons).compact()
       return yes
     else
       return no
@@ -67,15 +71,15 @@ module.exports = (robot) ->
   listJobs = (room) ->
     message = ""
     for job, index in getJobs()
-      message += "#{index}) Reminder to `#{job.text}` at cron `#{job.time}`\n"
-    message = "No reminders have be scheduled" if not message
+      message += "#{index}) Reminder to `#{job.text}` with a cron interval of `#{job.time}` will next run in `#{moment(crons[job.id].nextDate()).fromNow()}`\n"
+    message = "No reminders have been scheduled" if not message
     robot.messageRoom room, message
 
-  robot.respond /reminder list/, (msg) ->
+  robot.respond /(?:remind|reminder|reminders) list/, (msg) ->
     listJobs msg.message.room
     msg.finish()
 
-  robot.respond /reminder remove job (\d)/, (msg) ->
+  robot.respond /(?:reminder|reminder|reminders) remove(?: job)? (\d)/, (msg) ->
     [ __, id ] = msg.match
     if removeJob id
       msg.reply "Job ##{id} successfully removed"
@@ -83,15 +87,12 @@ module.exports = (robot) ->
       msg.reply "Unable to remove Job ##{id}"
     msg.finish()
 
-  robot.respond /remind(?: me)to ([^\s]+)(?: at ([^]+))?/, (msg) ->
-    [ __, text, cron ] = msg.match
+  regex = /(?:remind|reminder|reminders)(?: me| us)? to ([^]+)(?: (?:at|on) ([^]+))/
+  robot.respond regex, (msg) ->
+    [ __, text, cron ] = msg.message.rawText.match regex
     job = setupJob text, msg.message.room, cron
-    msg.reply "Reminder ##{getJobs().length - 1} has been scheduled to run at cron `#{job.time}`"
+    msg.reply "Reminder ##{getJobs().length - 1} has been scheduled with a cron interval of `#{job.time}` and the next run will be in `#{moment(crons[job.id].nextDate()).fromNow()}`"
     msg.finish()
 
   robot.brain.once 'loaded', ->
-    crons.push createCron job for job in getJobs()
-
-# robot.adapter.customMessage
-#   channel: room
-#   text: message
+    crons[job.id] = createCron job for job in getJobs()
