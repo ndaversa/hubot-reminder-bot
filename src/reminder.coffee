@@ -1,5 +1,5 @@
 # Description:
-# A hubot script to setup reminders using a natural language parser
+# A hubot script to schedule recurring reminders using a natural language parser
 #
 # Dependencies:
 # - coffee-script
@@ -11,9 +11,9 @@
 # None
 #
 # Commands:
-#   hubot remind [me|us] to `<reminder>` <interval> - Setup <reminder> to occur at <interlval>
-#   hubot reminder list - List all the pending reminders
-#   hubot reminder remove job <number> - Removes the given reminder job
+#   hubot remind [me|us] to `<reminder>` <interval> - schedule <reminder> to occur at <interval>
+#   hubot reminder list - List all scheduled reminders
+#   hubot reminder remove <number> - Removes the scheduled reminder
 #
 # Author:
 #   ndaversa
@@ -36,79 +36,80 @@ module.exports = (robot) ->
       channel: job.room
       text: job.text
 
-  getJobs = ->
-    robot.brain.get('reminder-jobs') or []
+  getReminders = () ->
+    robot.brain.get('reminders') or []
 
-  saveJobs = (jobs) ->
-    robot.brain.set 'reminder-jobs', jobs
+  save = (reminders) ->
+    robot.brain.set 'reminders', reminders
 
-  setupJob = (text, room, cronTime) ->
-    jobs = getJobs()
-    job =
+  schedule = (text, room, interval) ->
+    reminders = getReminders()
+    reminder =
       id: Date.now()
       text: text
       room: room
-      time: cronTime
-    scheduled[job.id] = create job
-    jobs.push job
-    saveJobs jobs
-    return job
+      time: interval
+    scheduled[reminder.id] = create reminder
+    reminders.push reminder
+    save reminders
+    return reminder
 
-  validSchedule = (text) ->
+  isValid = (text) ->
+    console.log "Checking validity of: `#{text}`"
     sched = later.parse.text text
     return sched.error is -1
 
-  removeJob = (number) ->
-    jobs = getJobs()
-    job = jobs[number]
+  remove = (number) ->
+    reminders = getReminders()
+    reminder = reminders[number]
 
-    if job
-      if scheduled[job.id]
-        scheduled[job.id].clear()
-        delete scheduled[job.id]
+    if reminder
+      if scheduled[reminder.id]
+        scheduled[reminder.id].clear()
+        delete scheduled[reminder.id]
       scheduled = _(scheduled).compact()
 
-      delete jobs[number]
-      jobs = _(jobs).compact()
-      saveJobs jobs
+      delete reminders[number]
+      reminders = _(reminders).compact()
+      save reminders
 
       return yes
     else
       return no
 
-  listJobs = (room) ->
+  robot.respond /(?:remind|reminder|reminders) list/, (msg) ->
+    room = msg.message.room
     message = ""
-    for job, index in getJobs()
-      sched = later.parse.text job.time
-      next = moment(later.schedule(sched).next(1, Date.now()))
-      message += "#{index}) Reminder to `#{job.text}` has been scheduled to run in ##{room} #{job.time} and will next run #{next.fromNow()}\n"
+    for reminder, index in getReminders()
+      sched = later.parse.text reminder.time
+      next = moment later.schedule(sched).next(1, Date.now())
+      message += "#{index}) Reminder to `#{reminder.text}` has been scheduled to run in ##{room} #{reminder.time} and will next run #{next.fromNow()}\n"
 
     message = "No reminders have been scheduled" if not message
     robot.messageRoom room, message
-
-  robot.respond /(?:remind|reminder|reminders) list/, (msg) ->
-    listJobs msg.message.room
     msg.finish()
 
-  robot.respond /(?:reminder|reminder|reminders) (?:remove|delete|cancel)(?: job)? (\d)/, (msg) ->
+  robot.respond /(?:remind|reminder|reminders) (?:remove|delete|cancel) (\d)/, (msg) ->
     [ __, id ] = msg.match
-    if removeJob id
+    if remove id
       msg.reply "Reminder ##{id} successfully removed"
     else
-      msg.reply "Unable to remove Job ##{id}"
+      msg.reply "Unable to find reminder ##{id}"
     msg.finish()
 
   regex = /(?:remind|reminder|reminders)(?: me| us)? to\s*`([^]+)`\s*([^]+)/
   robot.respond regex, (msg) ->
     [ __, text, time ] = msg.message.rawText.match regex
-    if validSchedule time
-      job = setupJob text, msg.message.room, time
+    room = msg.message.room
+
+    if isValid time
+      reminder = schedule text, room, time
       sched = later.parse.text time
-      next = moment(later.schedule(sched).next(1, Date.now()))
-      msg.reply "Reminder ##{getJobs().length - 1} has been scheduled to run in ##{msg.message.room} #{time} and will next run #{next.fromNow()}"
+      next = moment later.schedule(sched).next(1, Date.now())
+      msg.reply "Reminder ##{getReminders().length - 1} has been scheduled to run in ##{room} #{time} and will next run #{next.fromNow()}"
     else
-      msg.reply "Sorry, I was unable to parse your time interval"
+      msg.reply "Sorry I don't understand when to set the reminder for :cry:"
     msg.finish()
 
   robot.brain.once 'loaded', ->
-    scheduled[job.id] = create job for job in getJobs()
+    scheduled[reminder.id] = create reminder for reminder in getReminders()

@@ -1,5 +1,5 @@
 #Hubot Reminder Bot
-A hubot script to setup reminders using a natural language parser
+A hubot script to schedule recurring reminders using a natural language parser
 
 ###Dependencies
   * coffee-script
@@ -11,6 +11,6 @@ A hubot script to setup reminders using a natural language parser
   * None
 
 ###Commands
-  - ``hubot remind [me|us] to `<reminder>` <interval>`` - Setup `<reminder>` to occur at `<interlval>`
-  - `hubot reminder list` - List all the pending reminders
+  - ``hubot remind [me|us] to `<reminder>` <interval>`` - schedule `<reminder>` to occur at `<interval>`
+  - `hubot reminder list` - List all scheduled reminders
   - `hubot reminder remove job <number>` - Removes the given reminder job
