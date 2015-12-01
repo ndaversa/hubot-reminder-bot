@@ -55,15 +55,14 @@ module.exports = (robot) ->
     return reminder
 
   isValid = (text) ->
-    console.log "Checking validity of: `#{text}`"
     sched = later.parse.text text
     return sched.error is -1
 
-  remove = (number) ->
+  remove = (number, room) ->
     reminders = getReminders()
     reminder = reminders[number]
 
-    if reminder
+    if reminder and reminder.room is room
       if scheduled[reminder.id]
         scheduled[reminder.id].clear()
         delete scheduled[reminder.id]
@@ -77,24 +76,27 @@ module.exports = (robot) ->
     else
       return no
 
-  robot.respond /(?:remind|reminder|reminders) list/, (msg) ->
-    room = msg.message.room
+  robot.respond /(?:remind|reminder|reminders) list( all)?/, (msg) ->
+    [ __, all ] = msg.match
+    room = if all then undefined else msg.message.room
     message = ""
-    for reminder, index in getReminders()
-      sched = later.parse.text reminder.time
-      next = moment later.schedule(sched).next(1, Date.now())
-      message += "#{index}) Reminder to `#{reminder.text}` has been scheduled to run in ##{room} #{reminder.time} and will next run #{next.fromNow()}\n"
 
+    for reminder, index in getReminders()
+      if not room or room and room is reminder.room
+        sched = later.parse.text reminder.time
+        next = moment later.schedule(sched).next(1, Date.now())
+        message += "#{index}) Reminder to `#{reminder.text}` has been scheduled to run in ##{reminder.room} #{reminder.time} and will next run #{next.fromNow()}\n"
     message = "No reminders have been scheduled" if not message
-    robot.messageRoom room, message
+
+    robot.messageRoom msg.message.room, message
     msg.finish()
 
   robot.respond /(?:remind|reminder|reminders) (?:remove|delete|cancel) (\d)/, (msg) ->
     [ __, id ] = msg.match
-    if remove id
+    if remove id, msg.message.room
       msg.reply "Reminder ##{id} successfully removed"
     else
-      msg.reply "Unable to find reminder ##{id}"
+      msg.reply "Sorry I'm unable to remove reminder ##{id}"
     msg.finish()
 
   regex = /(?:remind|reminder|reminders)(?: me| us)? to\s*`([^]+)`\s*([^]+)/
