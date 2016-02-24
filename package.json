@@ -22,7 +22,7 @@
   "dependencies": {
     "coffee-script": "^1.10.0",
     "later": "^1.2.0",
-    "moment": "^2.10.6",
+    "moment": "^2.11.2",
     "underscore": "^1.8.3"
   },
   "main": "index.coffee",
