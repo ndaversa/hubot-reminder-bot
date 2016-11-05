@@ -1,7 +1,7 @@
 {
   "name": "hubot-reminder-bot",
   "description": "A hubot script to schedule recurring reminders using a natural language parser",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "authors": [
     "Nino D'Aversa <nino@ndaversa.com>"
   ],
