@@ -32,9 +32,7 @@ module.exports = (robot) ->
     later.setInterval (-> run job ), sched
 
   run = (job) ->
-    robot.adapter.customMessage
-      channel: job.room
-      text: job.text
+    robot.adapter.send room: job.room, job.text
 
   getReminders = () ->
     robot.brain.get('reminders') or []
@@ -76,7 +74,7 @@ module.exports = (robot) ->
     else
       return no
 
-  robot.respond /(?:remind|reminder|reminders) list( all)?/, (msg) ->
+  robot.respond /(?:remind|reminder|reminders) list( all)?/i, (msg) ->
     [ __, all ] = msg.match
     room = if all then undefined else msg.message.room
     message = ""
@@ -85,13 +83,13 @@ module.exports = (robot) ->
       if not room or room and room is reminder.room
         sched = later.parse.text reminder.time
         next = moment later.schedule(sched).next(1, Date.now())
-        message += "#{index}) Reminder to `#{reminder.text}` has been scheduled to run in ##{reminder.room} #{reminder.time} and will next run #{next.fromNow()}\n"
+        message += "#{index}) Reminder to `#{reminder.text}` has been scheduled to run in <##{reminder.room}> #{reminder.time} and will next run #{next.fromNow()}\n"
     message = "No reminders have been scheduled" if not message
 
     robot.messageRoom msg.message.room, message
     msg.finish()
 
-  robot.respond /(?:remind|reminder|reminders) (?:remove|delete|cancel) (\d)/, (msg) ->
+  robot.respond /(?:remind|reminder|reminders) (?:remove|delete|cancel) (\d)/i, (msg) ->
     [ __, id ] = msg.match
     if remove id, msg.message.room
       msg.reply "Reminder ##{id} successfully removed"
@@ -99,16 +97,15 @@ module.exports = (robot) ->
       msg.reply "Sorry I'm unable to remove reminder ##{id}"
     msg.finish()
 
-  regex = /(?:remind|reminder|reminders)(?: me| us)? to\s*`([^]+)`\s*([^]+)/
-  robot.respond regex, (msg) ->
-    [ __, text, time ] = msg.message.rawText.match regex
+  robot.respond /(?:remind|reminder|reminders)(?: me| us)? to\s*`([^]+)`\s*([^]+)/i, (msg) ->
+    [ __, text, time ] = msg.match
     room = msg.message.room
 
     if isValid time
       reminder = schedule text, room, time
       sched = later.parse.text time
       next = moment later.schedule(sched).next(1, Date.now())
-      msg.reply "Reminder ##{getReminders().length - 1} has been scheduled to run in ##{room} #{time} and will next run #{next.fromNow()}"
+      msg.reply "Reminder ##{getReminders().length - 1} has been scheduled to run in <##{room}> #{time} and will next run #{next.fromNow()}"
     else
       msg.reply "Sorry I don't understand when to set the reminder for :cry:"
     msg.finish()
