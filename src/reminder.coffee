@@ -60,7 +60,7 @@ module.exports = (robot) ->
     reminders = getReminders()
     reminder = reminders[number]
 
-    if reminder and reminder.room is room
+    if reminder
       if scheduled[reminder.id]
         scheduled[reminder.id].clear()
         delete scheduled[reminder.id]
@@ -71,8 +71,7 @@ module.exports = (robot) ->
       save reminders
 
       return yes
-    else
-      return no
+    return no
 
   robot.respond /(?:remind|reminder|reminders) list( all)?/i, (msg) ->
     [ __, all ] = msg.match
